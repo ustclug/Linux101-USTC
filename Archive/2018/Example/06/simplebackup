@@ -1,0 +1,38 @@
+#!/bin/bash
+
+conf=$1
+timestamp="$(date +%Y%m%d_%H%m%S)"
+
+source $conf
+if [[ -z "$SRC" || -z "$DST" || -z "$KEEP" ]]; then
+    echo "Missing fields in $conf."
+    exit -1
+fi
+
+if command -v rsync > /dev/null; then
+    sync_cmd="rsync -aHASX"
+else
+    echo "Rsync not found. Fallback to cp."
+    sync_cmd="cp -a"
+fi 
+
+echo "Start backup..."
+mkdir -p $DST
+$sync_cmd $SRC/ $DST/$timestamp/
+
+if [[ "$?" == 0 ]]; then
+    echo "Backup successfully!"
+else
+    echo "Backup failed! Won't continue."
+    exit -1
+fi
+
+backup_list=$(find $DST -mindepth 1 -maxdepth 1 -type d | sort -r)
+count=0
+for d in $backup_list; do
+    if [[ $count -ge $KEEP ]]; then
+        echo "Remove $d"
+        rm -rf $d/
+    fi
+    count=$((count+1))
+done
